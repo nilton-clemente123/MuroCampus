@@ -138,6 +138,8 @@ Tomadas en el emulador con el servicio real durante la Fase 1.
 - **Eliminar publicación:** botón en el detalle con confirmación; usa DELETE y revisa la respuesta
   HTTP en el Repository. Muestra carga, error con reintento o confirmación de eliminación simulada.
   El servicio no guarda el borrado, por eso una nueva consulta puede volver a mostrar la publicación.
+- **Búsqueda por título:** filtra localmente sin nuevas peticiones, ignora mayúsculas y espacios
+  externos, conserva la consulta al cambiar de usuario y muestra Sin publicaciones si no hay resultados.
 - El registro de asistencia, adaptaciones y criterio técnico está en `PROMPTS.md`.
 
 `main` contiene los 11 commits secuenciales de la Fase 1. La Fase 2 se desarrolla por separado

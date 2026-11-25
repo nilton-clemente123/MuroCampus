@@ -24,3 +24,15 @@ propuestas por el agente en el plan aprobado; no son prompts adicionales inventa
 - `CancellationException` se relanza. El ViewModel no importa Retrofit ni excepciones HTTP.
 - Validación automatizada: DELETE con ruta correcta, códigos 200/204/404/500, error de red,
   cancelación, estados del ViewModel, reintento y protección frente a envío duplicado.
+
+## Mejora 2: búsqueda local por título
+
+- Propuesta del plan aprobado: filtrar por título las publicaciones ya descargadas.
+- Adaptación: se combinan el estado remoto y la consulta mediante `combine` y `stateIn` en el
+  ViewModel, conservando la lista original sin mutarla. La UI solo envía el texto y observa estados.
+- Se ignoran mayúsculas y espacios en los extremos. Vaciar la consulta restaura los resultados;
+  la búsqueda se mantiene al cambiar el filtro de usuario y se aplica a su nueva respuesta.
+- No se hace una petición por cada carácter ni se añade debounce sin necesidad: el filtrado es local
+  sobre un conjunto pequeño. Los estados de carga/error no se ocultan con una lista vacía.
+- Pruebas: coincidencia solo por título, mayúsculas, consulta vacía, sin coincidencias, preservación
+  del error, combinación con usuario y ausencia de llamadas extra de red.

@@ -167,4 +167,37 @@ class PostsViewModelTest {
         vm.abrir(2)
         assertNull(vm.eliminacion.value)
     }
+
+    @Test fun busquedaLocalIgnoraMayusculasYNoDescarga() = runTest(dispatcher) {
+        val repo = RepoFalso().apply {
+            resultado = Result.success(listOf(post, Post(2, 2, "Otra publicación", "Título en el cuerpo")))
+        }
+        val vm = PostsViewModel(repo)
+        advanceUntilIdle()
+        vm.buscar("  TÍTULO  ")
+        advanceUntilIdle()
+        assertEquals(UiState.Exito(listOf(post)), vm.lista.value)
+        vm.buscar("no coincide")
+        advanceUntilIdle()
+        assertEquals(UiState.Exito(emptyList<Post>()), vm.lista.value)
+        vm.buscar("   ")
+        advanceUntilIdle()
+        assertEquals(2, (vm.lista.value as UiState.Exito).datos.size)
+        assertEquals(1, repo.llamadas)
+    }
+
+    @Test fun busquedaConservaErroresYSeAplicaAlFiltroRemoto() = runTest(dispatcher) {
+        val repo = RepoFalso().apply { resultado = Result.failure(Exception("Sin conexión a internet")) }
+        val vm = PostsViewModel(repo)
+        advanceUntilIdle()
+        vm.buscar("Título")
+        advanceUntilIdle()
+        assertEquals(UiState.Error("Sin conexión a internet"), vm.lista.value)
+        repo.resultado = Result.success(listOf(Post(2, 11, "Otro", "Texto")))
+        vm.filtrar(2)
+        advanceUntilIdle()
+        assertEquals("Título", vm.busqueda.value)
+        assertEquals(UiState.Exito(emptyList<Post>()), vm.lista.value)
+        assertEquals(2, repo.ultimoUsuario)
+    }
 }

@@ -9,6 +9,9 @@ import com.clemente.murocampus.model.NuevoPost
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -17,7 +20,16 @@ data class DetalleUi(val post: Post, val comentarios: List<Comentario>)
 
 class PostsViewModel(private val repo: PostRepository) : ViewModel() {
     private val _lista = MutableStateFlow<UiState<List<Post>>>(UiState.Cargando)
-    val lista = _lista.asStateFlow()
+    private val _busqueda = MutableStateFlow("")
+    val busqueda = _busqueda.asStateFlow()
+    val lista = combine(_lista, _busqueda) { estado, consulta ->
+        when (estado) {
+            is UiState.Exito -> UiState.Exito(estado.datos.filter {
+                it.title.contains(consulta.trim(), ignoreCase = true)
+            })
+            else -> estado
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState.Cargando)
     private val _usuarioFiltro = MutableStateFlow<Int?>(null)
     val usuarioFiltro = _usuarioFiltro.asStateFlow()
     private var carga: Job? = null
@@ -85,6 +97,8 @@ class PostsViewModel(private val repo: PostRepository) : ViewModel() {
     }
 
     fun prepararCreacion() { _creacion.value = null }
+
+    fun buscar(consulta: String) { _busqueda.value = consulta }
 
     fun eliminar(id: Int) {
         if (borrado?.isActive == true || _eliminacion.value is UiState.Exito) return

@@ -25,9 +25,11 @@ class PostsViewModelTest {
     private class RepoFalso : PostRepository {
         var resultado: Result<List<Post>> = Result.success(emptyList())
         var llamadas = 0
+        var errorComentarios: Exception? = null
         override suspend fun listar(): Result<List<Post>> { llamadas++; return resultado }
         override suspend fun detalle(id: Int): Result<Post> = Result.success(Post(1, id, "Título", "Texto"))
-        override suspend fun comentarios(id: Int): Result<List<Comentario>> = Result.success(emptyList())
+        override suspend fun comentarios(id: Int): Result<List<Comentario>> = errorComentarios?.let { Result.failure(it) }
+            ?: Result.success(List(5) { Comentario(id, it, "Nombre", "a@example.com", "Texto") })
         override suspend fun porUsuario(userId: Int): Result<List<Post>> = resultado
         override suspend fun crear(nuevo: NuevoPost): Result<Post> = Result.success(Post(nuevo.userId, 101, nuevo.title, nuevo.body))
     }
@@ -53,5 +55,25 @@ class PostsViewModelTest {
         advanceUntilIdle()
         assertTrue(vm.lista.value is UiState.Exito)
         assertEquals(2, repo.llamadas)
+    }
+
+    @Test fun detalleIncluyeComentariosSinRecargarLista() = runTest(dispatcher) {
+        val repo = RepoFalso()
+        val vm = PostsViewModel(repo)
+        advanceUntilIdle()
+        vm.abrir(1)
+        advanceUntilIdle()
+        val detalle = (vm.detalle.value as UiState.Exito).datos
+        assertEquals(1, detalle.post.id)
+        assertEquals(5, detalle.comentarios.size)
+        vm.cerrarDetalle()
+        assertEquals(1, repo.llamadas)
+    }
+
+    @Test fun falloDeComentariosFallaTodoElDetalle() = runTest(dispatcher) {
+        val vm = PostsViewModel(RepoFalso().apply { errorComentarios = Exception("Sin conexión a internet") })
+        vm.abrir(1)
+        advanceUntilIdle()
+        assertEquals(UiState.Error("Sin conexión a internet"), vm.detalle.value)
     }
 }

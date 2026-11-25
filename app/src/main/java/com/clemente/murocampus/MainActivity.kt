@@ -21,6 +21,14 @@ import com.clemente.murocampus.ui.PantallaLista
 import com.clemente.murocampus.viewmodel.PostsViewModel
 import com.clemente.murocampus.viewmodel.PostsViewModelFactory
 import androidx.compose.foundation.layout.Box
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.LaunchedEffect
+import com.clemente.murocampus.ui.PantallaDetalle
 
 class MainActivity : ComponentActivity() {
     private val vm: PostsViewModel by viewModels {
@@ -32,9 +40,19 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MuroCampusTheme {
+                var idSeleccionado by rememberSaveable { mutableStateOf<Int?>(null) }
+                LaunchedEffect(idSeleccionado) {
+                    idSeleccionado?.let(vm::abrir) ?: vm.cerrarDetalle()
+                }
+                BackHandler(enabled = idSeleccionado != null) { idSeleccionado = null }
                 Scaffold(topBar = {
                     TopAppBar(
                         title = { Text("MuroCampus") },
+                        navigationIcon = {
+                            if (idSeleccionado != null) TextButton(onClick = { idSeleccionado = null }) {
+                                Text("Atrás", color = MaterialTheme.colorScheme.onPrimary)
+                            }
+                        },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             titleContentColor = MaterialTheme.colorScheme.onPrimary
@@ -42,7 +60,9 @@ class MainActivity : ComponentActivity() {
                     )
                 }) { innerPadding ->
                     Box(Modifier.fillMaxSize().padding(innerPadding)) {
-                        PantallaLista(vm)
+                        val id = idSeleccionado
+                        if (id == null) PantallaLista(vm, alAbrir = { idSeleccionado = it })
+                        else PantallaDetalle(vm, id)
                     }
                 }
             }

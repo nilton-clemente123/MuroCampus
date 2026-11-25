@@ -2,9 +2,11 @@ package com.clemente.murocampus
 
 import com.clemente.murocampus.data.remote.PostApi
 import com.clemente.murocampus.data.remote.RetrofitClient
+import com.clemente.murocampus.data.remote.AcceptJsonInterceptor
 import com.clemente.murocampus.model.NuevoPost
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -19,14 +21,16 @@ class PostApiTest {
 
     @Before fun preparar() {
         server.start()
-        api = RetrofitClient.crearApi(server.url("/").toString(), OkHttpClient())
+        api = RetrofitClient.crearApi(server.url("/").toString())
     }
     @After fun cerrar() = server.shutdown()
 
     @Test fun listarUsaGet() = runTest {
         server.enqueue(MockResponse().setBody("[$post]"))
         assertEquals(1, api.listar().size)
-        assertEquals("/posts", server.takeRequest().path)
+        val request = server.takeRequest()
+        assertEquals("/posts", request.path)
+        assertEquals("application/json", request.getHeader("Accept"))
     }
 
     @Test fun detalleUsaPath() = runTest {
@@ -52,8 +56,27 @@ class PostApiTest {
         assertEquals(101, api.crear(NuevoPost(1, "Título", "Texto")).id)
         val request = server.takeRequest()
         assertEquals("POST", request.method)
+        assertEquals("application/json", request.getHeader("Accept"))
         assertEquals("/posts", request.path)
         assertTrue(request.getHeader("Content-Type")!!.startsWith("application/json"))
         assertEquals("""{"userId":1,"title":"Título","body":"Texto"}""", request.body.readUtf8())
+    }
+
+    @Test fun eliminarTambienEnviaAcceptJson() = runTest {
+        server.enqueue(MockResponse().setResponseCode(204))
+        assertTrue(api.eliminar(1).isSuccessful)
+        val request = server.takeRequest()
+        assertEquals("DELETE", request.method)
+        assertEquals("/posts/1", request.path)
+        assertEquals("application/json", request.getHeader("Accept"))
+    }
+
+    @Test fun interceptorReemplazaAcceptPrevioSinDuplicarlo() {
+        server.enqueue(MockResponse().setBody("{}"))
+        val client = OkHttpClient.Builder().addInterceptor(AcceptJsonInterceptor()).build()
+        val request = Request.Builder().url(server.url("/posts"))
+            .addHeader("Accept", "text/plain").addHeader("Accept", "text/html").build()
+        client.newCall(request).execute().use { assertTrue(it.isSuccessful) }
+        assertEquals(listOf("application/json"), server.takeRequest().headers.values("Accept"))
     }
 }

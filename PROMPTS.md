@@ -36,3 +36,32 @@ propuestas por el agente en el plan aprobado; no son prompts adicionales inventa
   sobre un conjunto pequeño. Los estados de carga/error no se ocultan con una lista vacía.
 - Pruebas: coincidencia solo por título, mayúsculas, consulta vacía, sin coincidencias, preservación
   del error, combinación con usuario y ausencia de llamadas extra de red.
+
+## Mejora 3: encabezado Accept con interceptor
+
+- Propuesta del plan aprobado: un interceptor OkHttp agrega `Accept: application/json` a las peticiones.
+- Se utiliza `header`, no `addHeader`, para sustituir valores previos sin acumular duplicados.
+  El interceptor pertenece al cliente HTTP; ninguna pantalla ni ViewModel conoce ese detalle.
+- Se mantiene HTTPS y el logging BODY únicamente en debug. El encabezado Accept indica el formato
+  de respuesta deseado, no sustituye el Content-Type del cuerpo enviado por el conversor.
+- Se prueba el cliente de producción con MockWebServer en GET, POST y DELETE; además se verifica
+  que dos encabezados Accept previos se sustituyen por uno solo.
+- Se añadieron pruebas instrumentadas de búsqueda sin resultados y borrado con confirmación/cancelación.
+
+## Revisión crítica
+
+- No se usaron catches vacíos, `GlobalScope`, llamadas HTTP desde Composables ni HTTP en producción.
+- Las URLs HTTP de MockWebServer se usan exclusivamente en pruebas JVM locales.
+- La extracción de capturas por coordenadas falló; se descartó esa captura y se sustituyó por una
+  prueba Compose por etiquetas, comprobando primero «Publicado con id 101».
+- Las pruebas instrumentadas reales dependen de la conectividad. Una repetición justo después de
+  restablecer la red falló por timeout; con la conexión recuperada pasó. Las pruebas JVM de contrato
+  no dependen de ese servicio externo.
+
+## Resultado final verificado
+
+- `assembleDebug`, `testDebugUnitTest`, `lintDebug` y `connectedDebugAndroidTest`: correctos.
+- 27 pruebas JVM y 4 instrumentadas: cero fallos; lint sin errores.
+- La prueba instrumentada final confirmó el flujo original y las mejoras de búsqueda/eliminación.
+- Las cinco capturas del README se mantienen como evidencia de main, sin reemplazarlas por
+  pantallas de mejora-ia. No se configuró remoto ni se publicó en GitHub.

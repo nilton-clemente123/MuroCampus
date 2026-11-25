@@ -140,7 +140,17 @@ Tomadas en el emulador con el servicio real durante la Fase 1.
   El servicio no guarda el borrado, por eso una nueva consulta puede volver a mostrar la publicación.
 - **Búsqueda por título:** filtra localmente sin nuevas peticiones, ignora mayúsculas y espacios
   externos, conserva la consulta al cambiar de usuario y muestra Sin publicaciones si no hay resultados.
+- **Encabezado Accept:** interceptor OkHttp que envía `Accept: application/json` en todas las
+  peticiones, reemplazando valores anteriores sin duplicados. El logging sigue limitado a debug.
+- Las capturas anteriores corresponden a `main`; la rama de mejoras añade el buscador y el botón
+  de eliminación. `MejorasTest` cubre esas interacciones con el servicio real.
 - El registro de asistencia, adaptaciones y criterio técnico está en `PROMPTS.md`.
+
+**Validación final de mejora-ia (25 de noviembre de 2026):** compilación debug correcta,
+27 pruebas JVM y 4 pruebas instrumentadas sin fallos, lint debug sin errores. Las pruebas del
+emulador verificaron el flujo original, la búsqueda sin coincidencias y la eliminación con
+cancelación/confirmación. Persisten advertencias de versiones y recursos de la plantilla;
+no se realizaron actualizaciones de dependencias ajenas al alcance del laboratorio.
 
 `main` contiene los 11 commits secuenciales de la Fase 1. La Fase 2 se desarrolla por separado
 en `mejora-ia`. Los commits representan avances reales, no una división posterior de toda la app.

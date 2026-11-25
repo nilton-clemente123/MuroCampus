@@ -27,12 +27,18 @@ class PostsViewModelTest {
         var llamadas = 0
         var errorComentarios: Exception? = null
         var ultimoUsuario: Int? = null
+        var errorCrear: Exception? = null
+        var ultimoNuevo: NuevoPost? = null
         override suspend fun listar(): Result<List<Post>> { llamadas++; return resultado }
         override suspend fun detalle(id: Int): Result<Post> = Result.success(Post(1, id, "Título", "Texto"))
         override suspend fun comentarios(id: Int): Result<List<Comentario>> = errorComentarios?.let { Result.failure(it) }
             ?: Result.success(List(5) { Comentario(id, it, "Nombre", "a@example.com", "Texto") })
         override suspend fun porUsuario(userId: Int): Result<List<Post>> { ultimoUsuario = userId; return resultado }
-        override suspend fun crear(nuevo: NuevoPost): Result<Post> = Result.success(Post(nuevo.userId, 101, nuevo.title, nuevo.body))
+        override suspend fun crear(nuevo: NuevoPost): Result<Post> {
+            ultimoNuevo = nuevo
+            return errorCrear?.let { Result.failure(it) }
+                ?: Result.success(Post(nuevo.userId, 101, nuevo.title, nuevo.body))
+        }
     }
     @Before fun preparar() = Dispatchers.setMain(dispatcher)
     @After fun cerrar() = Dispatchers.resetMain()
@@ -93,5 +99,31 @@ class PostsViewModelTest {
         advanceUntilIdle()
         assertNull(vm.usuarioFiltro.value)
         assertEquals(2, repo.llamadas)
+    }
+
+    @Test fun publicarValidaCamposYDevuelve101() = runTest(dispatcher) {
+        val repo = RepoFalso()
+        val vm = PostsViewModel(repo)
+        vm.publicar(" ", "Texto")
+        assertNull(vm.creacion.value)
+        vm.publicar(" Título ", " Texto ")
+        assertEquals(UiState.Cargando, vm.creacion.value)
+        advanceUntilIdle()
+        assertEquals(NuevoPost(1, "Título", "Texto"), repo.ultimoNuevo)
+        assertEquals(101, (vm.creacion.value as UiState.Exito).datos.id)
+        vm.prepararCreacion()
+        assertNull(vm.creacion.value)
+    }
+
+    @Test fun publicarPuedeReintentarTrasError() = runTest(dispatcher) {
+        val repo = RepoFalso().apply { errorCrear = Exception("Sin conexión a internet") }
+        val vm = PostsViewModel(repo)
+        vm.publicar("Título", "Texto")
+        advanceUntilIdle()
+        assertTrue(vm.creacion.value is UiState.Error)
+        repo.errorCrear = null
+        vm.publicar("Título", "Texto")
+        advanceUntilIdle()
+        assertTrue(vm.creacion.value is UiState.Exito)
     }
 }

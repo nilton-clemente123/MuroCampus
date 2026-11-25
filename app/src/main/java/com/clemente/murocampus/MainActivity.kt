@@ -29,6 +29,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.LaunchedEffect
 import com.clemente.murocampus.ui.PantallaDetalle
+import com.clemente.murocampus.ui.PantallaCrear
+import androidx.compose.material3.FloatingActionButton
 
 class MainActivity : ComponentActivity() {
     private val vm: PostsViewModel by viewModels {
@@ -41,15 +43,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             MuroCampusTheme {
                 var idSeleccionado by rememberSaveable { mutableStateOf<Int?>(null) }
+                var creando by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(idSeleccionado) {
                     idSeleccionado?.let(vm::abrir) ?: vm.cerrarDetalle()
                 }
-                BackHandler(enabled = idSeleccionado != null) { idSeleccionado = null }
+                BackHandler(enabled = idSeleccionado != null || creando) {
+                    idSeleccionado = null
+                    creando = false
+                }
                 Scaffold(topBar = {
                     TopAppBar(
                         title = { Text("MuroCampus") },
                         navigationIcon = {
-                            if (idSeleccionado != null) TextButton(onClick = { idSeleccionado = null }) {
+                            if (idSeleccionado != null || creando) TextButton(onClick = { idSeleccionado = null; creando = false }) {
                                 Text("Atrás", color = MaterialTheme.colorScheme.onPrimary)
                             }
                         },
@@ -58,10 +64,17 @@ class MainActivity : ComponentActivity() {
                             titleContentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     )
+                }, floatingActionButton = {
+                    if (idSeleccionado == null && !creando) {
+                        FloatingActionButton(onClick = { vm.prepararCreacion(); creando = true }) {
+                            Text("+ Nueva publicación")
+                        }
+                    }
                 }) { innerPadding ->
                     Box(Modifier.fillMaxSize().padding(innerPadding)) {
                         val id = idSeleccionado
-                        if (id == null) PantallaLista(vm, alAbrir = { idSeleccionado = it })
+                        if (creando) PantallaCrear(vm)
+                        else if (id == null) PantallaLista(vm, alAbrir = { idSeleccionado = it })
                         else PantallaDetalle(vm, id)
                     }
                 }

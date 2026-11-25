@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.clemente.murocampus.data.PostRepository
 import com.clemente.murocampus.model.Post
 import com.clemente.murocampus.model.Comentario
+import com.clemente.murocampus.model.NuevoPost
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,9 @@ class PostsViewModel(private val repo: PostRepository) : ViewModel() {
     private var cargaDetalle: Job? = null
     private val _detalle = MutableStateFlow<UiState<DetalleUi>>(UiState.Cargando)
     val detalle = _detalle.asStateFlow()
+    private val _creacion = MutableStateFlow<UiState<Post>?>(null)
+    val creacion = _creacion.asStateFlow()
+    private var envio: Job? = null
 
     init { cargar() }
 
@@ -61,6 +65,18 @@ class PostsViewModel(private val repo: PostRepository) : ViewModel() {
         _usuarioFiltro.value = userId
         cargar()
     }
+
+    fun publicar(titulo: String, texto: String) {
+        if (titulo.isBlank() || texto.isBlank() || envio?.isActive == true) return
+        _creacion.value = UiState.Cargando
+        envio = viewModelScope.launch {
+            repo.crear(NuevoPost(1, titulo.trim(), texto.trim()))
+                .onSuccess { _creacion.value = UiState.Exito(it) }
+                .onFailure { _creacion.value = UiState.Error(mensajeDe(it)) }
+        }
+    }
+
+    fun prepararCreacion() { _creacion.value = null }
 }
 
 internal fun mensajeDe(error: Throwable): String = error.message ?: "Error desconocido"

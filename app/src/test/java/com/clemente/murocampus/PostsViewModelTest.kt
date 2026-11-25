@@ -26,11 +26,12 @@ class PostsViewModelTest {
         var resultado: Result<List<Post>> = Result.success(emptyList())
         var llamadas = 0
         var errorComentarios: Exception? = null
+        var ultimoUsuario: Int? = null
         override suspend fun listar(): Result<List<Post>> { llamadas++; return resultado }
         override suspend fun detalle(id: Int): Result<Post> = Result.success(Post(1, id, "Título", "Texto"))
         override suspend fun comentarios(id: Int): Result<List<Comentario>> = errorComentarios?.let { Result.failure(it) }
             ?: Result.success(List(5) { Comentario(id, it, "Nombre", "a@example.com", "Texto") })
-        override suspend fun porUsuario(userId: Int): Result<List<Post>> = resultado
+        override suspend fun porUsuario(userId: Int): Result<List<Post>> { ultimoUsuario = userId; return resultado }
         override suspend fun crear(nuevo: NuevoPost): Result<Post> = Result.success(Post(nuevo.userId, 101, nuevo.title, nuevo.body))
     }
     @Before fun preparar() = Dispatchers.setMain(dispatcher)
@@ -75,5 +76,22 @@ class PostsViewModelTest {
         vm.abrir(1)
         advanceUntilIdle()
         assertEquals(UiState.Error("Sin conexión a internet"), vm.detalle.value)
+    }
+
+    @Test fun filtroPorUsuarioYTodos() = runTest(dispatcher) {
+        val repo = RepoFalso()
+        val vm = PostsViewModel(repo)
+        advanceUntilIdle()
+        vm.filtrar(2)
+        advanceUntilIdle()
+        assertEquals(2, vm.usuarioFiltro.value)
+        assertEquals(2, repo.ultimoUsuario)
+        vm.cargar()
+        advanceUntilIdle()
+        assertEquals(1, repo.llamadas)
+        vm.filtrar(null)
+        advanceUntilIdle()
+        assertNull(vm.usuarioFiltro.value)
+        assertEquals(2, repo.llamadas)
     }
 }

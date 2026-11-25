@@ -17,6 +17,8 @@ data class DetalleUi(val post: Post, val comentarios: List<Comentario>)
 class PostsViewModel(private val repo: PostRepository) : ViewModel() {
     private val _lista = MutableStateFlow<UiState<List<Post>>>(UiState.Cargando)
     val lista = _lista.asStateFlow()
+    private val _usuarioFiltro = MutableStateFlow<Int?>(null)
+    val usuarioFiltro = _usuarioFiltro.asStateFlow()
     private var carga: Job? = null
     private var cargaDetalle: Job? = null
     private val _detalle = MutableStateFlow<UiState<DetalleUi>>(UiState.Cargando)
@@ -28,7 +30,9 @@ class PostsViewModel(private val repo: PostRepository) : ViewModel() {
         carga?.cancel()
         carga = viewModelScope.launch {
             _lista.value = UiState.Cargando
-            repo.listar()
+            val usuario = _usuarioFiltro.value
+            val resultado = if (usuario == null) repo.listar() else repo.porUsuario(usuario)
+            resultado
                 .onSuccess { _lista.value = UiState.Exito(it) }
                 .onFailure { _lista.value = UiState.Error(mensajeDe(it)) }
         }
@@ -51,6 +55,12 @@ class PostsViewModel(private val repo: PostRepository) : ViewModel() {
     }
 
     fun cerrarDetalle() { cargaDetalle?.cancel() }
+
+    fun filtrar(userId: Int?) {
+        require(userId == null || userId in 1..10)
+        _usuarioFiltro.value = userId
+        cargar()
+    }
 }
 
 internal fun mensajeDe(error: Throwable): String = error.message ?: "Error desconocido"

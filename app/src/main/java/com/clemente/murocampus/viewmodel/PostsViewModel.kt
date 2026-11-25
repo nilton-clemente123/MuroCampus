@@ -27,6 +27,9 @@ class PostsViewModel(private val repo: PostRepository) : ViewModel() {
     private val _creacion = MutableStateFlow<UiState<Post>?>(null)
     val creacion = _creacion.asStateFlow()
     private var envio: Job? = null
+    private var borrado: Job? = null
+    private val _eliminacion = MutableStateFlow<UiState<Unit>?>(null)
+    val eliminacion = _eliminacion.asStateFlow()
 
     init { cargar() }
 
@@ -44,6 +47,8 @@ class PostsViewModel(private val repo: PostRepository) : ViewModel() {
 
     fun abrir(id: Int) {
         cargaDetalle?.cancel()
+        borrado?.cancel()
+        _eliminacion.value = null
         _detalle.value = UiState.Cargando
         cargaDetalle = viewModelScope.launch {
             coroutineScope {
@@ -58,7 +63,10 @@ class PostsViewModel(private val repo: PostRepository) : ViewModel() {
         }
     }
 
-    fun cerrarDetalle() { cargaDetalle?.cancel() }
+    fun cerrarDetalle() {
+        cargaDetalle?.cancel()
+        borrado?.cancel()
+    }
 
     fun filtrar(userId: Int?) {
         require(userId == null || userId in 1..10)
@@ -77,6 +85,18 @@ class PostsViewModel(private val repo: PostRepository) : ViewModel() {
     }
 
     fun prepararCreacion() { _creacion.value = null }
+
+    fun eliminar(id: Int) {
+        if (borrado?.isActive == true || _eliminacion.value is UiState.Exito) return
+        val actual = _detalle.value as? UiState.Exito ?: return
+        if (actual.datos.post.id != id) return
+        _eliminacion.value = UiState.Cargando
+        borrado = viewModelScope.launch {
+            repo.eliminar(id)
+                .onSuccess { _eliminacion.value = UiState.Exito(Unit) }
+                .onFailure { _eliminacion.value = UiState.Error(mensajeDe(it)) }
+        }
+    }
 }
 
 internal fun mensajeDe(error: Throwable): String = error.message ?: "Error desconocido"

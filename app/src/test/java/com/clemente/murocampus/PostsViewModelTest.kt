@@ -29,6 +29,8 @@ class PostsViewModelTest {
         var ultimoUsuario: Int? = null
         var errorCrear: Exception? = null
         var ultimoNuevo: NuevoPost? = null
+        var errorEliminar: Exception? = null
+        var eliminaciones = 0
         override suspend fun listar(): Result<List<Post>> { llamadas++; return resultado }
         override suspend fun detalle(id: Int): Result<Post> = Result.success(Post(1, id, "Título", "Texto"))
         override suspend fun comentarios(id: Int): Result<List<Comentario>> = errorComentarios?.let { Result.failure(it) }
@@ -38,6 +40,10 @@ class PostsViewModelTest {
             ultimoNuevo = nuevo
             return errorCrear?.let { Result.failure(it) }
                 ?: Result.success(Post(nuevo.userId, 101, nuevo.title, nuevo.body))
+        }
+        override suspend fun eliminar(id: Int): Result<Unit> {
+            eliminaciones++
+            return errorEliminar?.let { Result.failure(it) } ?: Result.success(Unit)
         }
     }
     @Before fun preparar() = Dispatchers.setMain(dispatcher)
@@ -125,5 +131,40 @@ class PostsViewModelTest {
         vm.publicar("Título", "Texto")
         advanceUntilIdle()
         assertTrue(vm.creacion.value is UiState.Exito)
+    }
+
+    @Test fun eliminarRequiereDetalleYNoDuplicaExito() = runTest(dispatcher) {
+        val repo = RepoFalso()
+        val vm = PostsViewModel(repo)
+        vm.eliminar(1)
+        advanceUntilIdle()
+        assertEquals(0, repo.eliminaciones)
+        vm.abrir(1)
+        advanceUntilIdle()
+        vm.eliminar(2)
+        assertNull(vm.eliminacion.value)
+        vm.eliminar(1)
+        assertEquals(UiState.Cargando, vm.eliminacion.value)
+        advanceUntilIdle()
+        assertEquals(UiState.Exito(Unit), vm.eliminacion.value)
+        vm.eliminar(1)
+        advanceUntilIdle()
+        assertEquals(1, repo.eliminaciones)
+    }
+
+    @Test fun eliminarPermiteReintentarYReiniciaAlCambiarDetalle() = runTest(dispatcher) {
+        val repo = RepoFalso().apply { errorEliminar = Exception("Error del servidor (500)") }
+        val vm = PostsViewModel(repo)
+        vm.abrir(1)
+        advanceUntilIdle()
+        vm.eliminar(1)
+        advanceUntilIdle()
+        assertTrue(vm.eliminacion.value is UiState.Error)
+        repo.errorEliminar = null
+        vm.eliminar(1)
+        advanceUntilIdle()
+        assertEquals(UiState.Exito(Unit), vm.eliminacion.value)
+        vm.abrir(2)
+        assertNull(vm.eliminacion.value)
     }
 }

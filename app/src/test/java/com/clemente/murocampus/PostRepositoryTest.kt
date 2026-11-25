@@ -22,11 +22,12 @@ class PostRepositoryTest {
         override suspend fun comentarios(id: Int): List<Comentario> = throw error
         override suspend fun porUsuario(userId: Int): List<Post> = throw error
         override suspend fun crear(nuevo: NuevoPost): Post = throw error
+        override suspend fun eliminar(id: Int): retrofit2.Response<Unit> = throw error
     }
 
     @Test fun todasLasOperacionesDevuelvenErrorDeRed() = runTest {
         val repo = PostRepositoryRemote(ApiFallida(IOException("sin red")))
-        val resultados = listOf(repo.listar(), repo.detalle(1), repo.comentarios(1), repo.porUsuario(2), repo.crear(NuevoPost(1, "a", "b")))
+        val resultados = listOf(repo.listar(), repo.detalle(1), repo.comentarios(1), repo.porUsuario(2), repo.crear(NuevoPost(1, "a", "b")), repo.eliminar(1))
         resultados.forEach {
             assertTrue(it.isFailure)
             assertTrue(it.exceptionOrNull()!!.message!!.startsWith("Sin conexión a internet"))
@@ -38,7 +39,7 @@ class PostRepositoryTest {
         val repo = PostRepositoryRemote(ApiFallida(error))
         val operaciones: List<suspend () -> Any> = listOf(
             { repo.listar() }, { repo.detalle(1) }, { repo.comentarios(1) },
-            { repo.porUsuario(2) }, { repo.crear(NuevoPost(1, "a", "b")) }
+            { repo.porUsuario(2) }, { repo.crear(NuevoPost(1, "a", "b")) }, { repo.eliminar(1) }
         )
         operaciones.forEach { operacion ->
             try {
@@ -61,6 +62,25 @@ class PostRepositoryTest {
             assertEquals("Respuesta inesperada", repo.detalle(1).exceptionOrNull()!!.message)
             server.enqueue(MockResponse().setBody("[]"))
             assertEquals(emptyList<Post>(), repo.listar().getOrThrow())
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test fun eliminarCompruebaCodigoInclusoSinCuerpo() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val repo = PostRepositoryRemote(RetrofitClient.crearApi(server.url("/").toString(), OkHttpClient()))
+            for (codigo in listOf(200, 204, 404, 500)) {
+                server.enqueue(MockResponse().setResponseCode(codigo))
+                val resultado = repo.eliminar(1)
+                if (codigo < 300) assertTrue(resultado.isSuccess)
+                else assertEquals("Error del servidor ($codigo)", resultado.exceptionOrNull()!!.message)
+                val request = server.takeRequest()
+                assertEquals("DELETE", request.method)
+                assertEquals("/posts/1", request.path)
+            }
         } finally {
             server.shutdown()
         }

@@ -133,6 +133,13 @@ Tomadas en el emulador con el servicio real durante la Fase 1.
 
 ## Git y entrega
 
+### Mejoras en mejora-ia
+
+- **Eliminar publicación:** botón en el detalle con confirmación; usa DELETE y revisa la respuesta
+  HTTP en el Repository. Muestra carga, error con reintento o confirmación de eliminación simulada.
+  El servicio no guarda el borrado, por eso una nueva consulta puede volver a mostrar la publicación.
+- El registro de asistencia, adaptaciones y criterio técnico está en `PROMPTS.md`.
+
 `main` contiene los 11 commits secuenciales de la Fase 1. La Fase 2 se desarrolla por separado
 en `mejora-ia`. Los commits representan avances reales, no una división posterior de toda la app.
 La publicación en GitHub está pendiente: no hay remoto configurado y no se ha ejecutado push.

@@ -15,6 +15,7 @@ interface PostRepository {
     suspend fun comentarios(id: Int): Result<List<Comentario>>
     suspend fun porUsuario(userId: Int): Result<List<Post>>
     suspend fun crear(nuevo: NuevoPost): Result<Post>
+    suspend fun eliminar(id: Int): Result<Unit>
 }
 
 /** Error de datos traducido a un mensaje seguro, sin exponer Retrofit a la presentación. */
@@ -26,6 +27,11 @@ class PostRepositoryRemote(private val api: PostApi) : PostRepository {
     override suspend fun comentarios(id: Int) = llamar { api.comentarios(id) }
     override suspend fun porUsuario(userId: Int) = llamar { api.porUsuario(userId) }
     override suspend fun crear(nuevo: NuevoPost) = llamar { api.crear(nuevo) }
+    override suspend fun eliminar(id: Int): Result<Unit> = llamar {
+        val respuesta = api.eliminar(id)
+        if (!respuesta.isSuccessful) throw HttpException(respuesta)
+        Unit
+    }
 
     private suspend fun <T> llamar(bloque: suspend () -> T): Result<T> = try {
         Result.success(bloque())
